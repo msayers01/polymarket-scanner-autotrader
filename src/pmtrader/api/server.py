@@ -144,11 +144,35 @@ def create_app(engine: Engine, start_engine: bool = True) -> FastAPI:
             for r in await engine.repo.recent_audit()
         ]
 
+    @app.get("/api/markets")
+    async def search_markets(
+        q: str = "", limit: int = Query(20, le=100), _actor: str = Depends(auth)
+    ) -> list[dict[str, Any]]:
+        """Search the catalog by question text (universe markets first, then by 24h volume)."""
+        needle = q.lower().strip()
+        universe = set(engine.catalog.universe)
+        hits = [m for m in engine.catalog.markets.values() if not needle or needle in m.question.lower()]
+        hits.sort(key=lambda m: (m.id not in universe, -m.volume_24h_usd))
+        return [
+            {
+                "id": m.id,
+                "question": m.question,
+                "volume_24h": round(m.volume_24h_usd),
+                "live": m.id in universe,
+                "end_time": m.end_time,
+                "outcomes": [o.name for o in m.outcomes],
+            }
+            for m in hits[:limit]
+        ]
+
     @app.get("/api/market/{market_id}")
     async def market(market_id: str, _actor: str = Depends(auth)) -> JSONResponse:
         m = engine.catalog.get(market_id)
         if m is None:
             raise HTTPException(404, "unknown market")
+        if market_id not in engine.catalog.universe:
+            await engine.catalog.watch(market_id)
+            await asyncio.sleep(1.0)  # give the WS a moment to deliver the snapshot
         books = {}
         for o in m.outcomes:
             b = engine.feed.book(o.asset_id)

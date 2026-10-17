@@ -202,7 +202,7 @@ Market data recording (`pmtrader record`) writes compressed JSONL book/trade str
 
 | Failure | Detection | Response |
 |---|---|---|
-| WS disconnect / silent stall | heartbeat + per-book staleness | Reconnect with backoff and re-snapshot. Stale books block new orders; quotes are pulled after `stale_data_seconds`. |
+| WS disconnect / silent stall | connection-level freshness: each book links to its shard's `last_rx` (incl. PONG heartbeats) | Reconnect with backoff and re-snapshot. Books on a dead/silent connection are stale, which blocks new orders. Quiet books on a live connection stay valid. |
 | Exchange reject storm | consecutive reject counter | Pause the strategy, then halt if it is systemic. |
 | Order state drift | periodic reconcile with `list_open_orders` / trades | The exchange is the source of truth. Orphans are cancelled and drift is alerted. |
 | Crash/restart | persisted state + reconcile on boot | Comes back in the persisted `TradingState`. Never auto-resumes from HALTED. |

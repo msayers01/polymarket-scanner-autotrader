@@ -144,10 +144,19 @@ q = Φ((b − ντ)/(σ√τ)) + e^{2νb/σ²} · Φ((b + ντ)/(σ√τ))
 If the running max/min since the window start has already crossed the barrier, q = 1. The running extremum is computed from klines.
 1-minute candle highs/lows approximate continuous monitoring well, so no Broadie–Glasserman–Kou correction is applied.
 
-**Volatility σ.** We blend realized and implied:
-* realized: an EWMA of 1-minute log returns (λ = 0.97 per minute, annualised by √525 600), from `data-api.binance.vision` klines;
-* implied: Deribit DVOL (BTC/ETH) where available;
-* `σ = w·σ_impl + (1−w)·σ_real` (default w = 0.5). For τ < 6 h the realized weight rises, because short-dated implied vol is poorly measured.
+**Volatility σ (seasonal).** A flat annualised σ is wrong for short windows: crypto variance has strong
+intraday and weekday/weekend periodicity (Andersen & Bollerslev 1997). Measured on BTC (Oct 2026): weekend variance
+≈ 0.41× the weekly average, and 13–15 UTC (US open) ≈ 2.5×. A flat σ made a 5-hour Saturday-evening barrier look
+10¢ mispriced when the market was in fact right. We therefore use:
+* base σ = variance blend of the **7-day hourly Parkinson** estimate (one full weekly cycle, so already de-seasonalised)
+  and Deribit **DVOL** (30-day implied, BTC/ETH), weight 0.5 each;
+* a multiplicative seasonal profile `v(t) = hod[hour_of_day] × wk[weekday|weekend]` fitted from ~41 days of hourly
+  Parkinson variances (normalised to mean 1, shrunk 20% toward 1);
+* the σ used for a contract is `σ_base · √(mean v(t) over [now, expiry])` (`CryptoReference.vol_for_window`).
+
+**Market blending.** The model is not the only information source; the market sees news and flows. The fair band
+is shrunk toward the market mid: `q = w·q_model + (1−w)·p_mid` with `w = model_weight` (default 0.6). Edges
+therefore require *strong and robust* disagreement, which cuts trades driven by model error.
 
 **Model uncertainty band.** Crypto returns are fat-tailed, so lognormal digitals *underprice the far tails*. We compute q at `σ·m_lo` and `σ·m_hi` (default 0.8 and 1.4) and treat `[q_lo, q_hi]` as the fair range. We trade only when the executable price lies outside the band by more than costs plus margin:
 

@@ -13,6 +13,7 @@ import asyncio
 import contextlib
 import json
 import time
+from collections import deque
 from collections.abc import Callable
 from dataclasses import asdict, is_dataclass
 from enum import Enum
@@ -74,6 +75,7 @@ class WebSocketHub:
         self.seq = 0
         self._dirty: set[str] = set()
         self._events: list[dict[str, Any]] = []
+        self.recent: deque[dict[str, Any]] = deque(maxlen=100)  # replayed to new clients
         self._wake = asyncio.Event()
 
     # ------------------------------------------------------------------ bus → dirty sections / events
@@ -142,6 +144,7 @@ class WebSocketHub:
 
     def _push(self, e: dict[str, Any]) -> None:
         e["ts"] = time.time()
+        self.recent.append(e)
         self._events.append(e)
         del self._events[:-200]
         self._wake.set()
@@ -196,9 +199,14 @@ class WebSocketHub:
             off()
 
     # ------------------------------------------------------------------ connections
+    def _snapshot_frame(self) -> str:
+        data = self.engine.snapshot()
+        data["events"] = list(self.recent)
+        return dumps({"type": "snapshot", "seq": self.seq, "data": data})
+
     async def handle(self, ws: WebSocket) -> None:
         await ws.accept()
-        await ws.send_text(dumps({"type": "snapshot", "seq": self.seq, "data": self.engine.snapshot()}))
+        await ws.send_text(self._snapshot_frame())
         self.clients.add(ws)
         try:
             while True:
@@ -208,7 +216,7 @@ class WebSocketHub:
                 except json.JSONDecodeError:
                     continue
                 if data.get("type") == "resync":
-                    await ws.send_text(dumps({"type": "snapshot", "seq": self.seq, "data": self.engine.snapshot()}))
+                    await ws.send_text(self._snapshot_frame())
         except WebSocketDisconnect:
             pass
         finally:

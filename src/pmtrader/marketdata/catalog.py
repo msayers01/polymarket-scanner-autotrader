@@ -50,9 +50,24 @@ class MarketCatalog:
         self.by_event: dict[str, list[str]] = defaultdict(list)
         self.universe: list[str] = []  # market ids in the active universe, ranked
         self._on_universe = on_universe
-        self._pinned = pinned_markets or (lambda: ())
+        self._pinned_extra = pinned_markets or (lambda: ())
+        self.watchlist: list[str] = []  # markets opened in the UI trade ticket (kept subscribed)
         self.last_refresh = 0.0
         self._failures = 0
+
+    def _pinned(self) -> set[str]:
+        return set(self._pinned_extra()) | set(self.watchlist)
+
+    async def watch(self, market_id: str) -> None:
+        """Subscribe a market's books immediately (e.g. user opened it in the trade ticket)."""
+        if market_id not in self.markets or market_id in self.universe:
+            return
+        self.watchlist = [*self.watchlist[-49:], market_id]
+        self.select_universe()
+        if self._on_universe:
+            res = self._on_universe(self.universe_assets())
+            if asyncio.iscoroutine(res):
+                await res
 
     # --------------------------------------------------------------- lookups
     def get(self, market_id: str) -> Market | None:
