@@ -57,7 +57,9 @@ class CalibrationCurve:
     meta: dict[str, object] = field(default_factory=dict)
 
     @classmethod
-    def fit(cls, prices: Sequence[float], outcomes: Sequence[int], kappa: float = 20.0, **meta: object) -> CalibrationCurve:
+    def fit(
+        cls, prices: Sequence[float], outcomes: Sequence[int], kappa: float = 20.0, **meta: object
+    ) -> CalibrationCurve:
         xs, ys = pav(prices, [float(o) for o in outcomes])
         curve = cls(xs=xs, ys=ys, kappa=kappa, meta=dict(meta))
         nb = len(curve.bin_edges) - 1

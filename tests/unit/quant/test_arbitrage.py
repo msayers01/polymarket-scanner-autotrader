@@ -51,7 +51,8 @@ def test_neg_risk_no_basket_payoff():
 
 def test_empty_leg():
     r = basket_buy([Leg([], NOFEE), Leg([(0.3, 1)], NOFEE)])
-    assert r.sets == 0 and math.isinf(r.top_set_cost)
+    assert r.sets == 0
+    assert math.isinf(r.top_set_cost)
 
 
 def test_sell_side():
@@ -60,9 +61,9 @@ def test_sell_side():
     assert r.profit == pytest.approx(10 * 0.05)
 
 
-levels = st.lists(
-    st.tuples(st.integers(1, 99).map(lambda c: c / 100), st.floats(1, 500)), min_size=1, max_size=6
-).map(lambda ls: sorted(dict(ls).items()))
+levels = st.lists(st.tuples(st.integers(1, 99).map(lambda c: c / 100), st.floats(1, 500)), min_size=1, max_size=6).map(
+    lambda ls: sorted(dict(ls).items())
+)
 
 
 @given(a=levels, b=levels, rate=st.sampled_from([0.0, 0.04, 0.07]))

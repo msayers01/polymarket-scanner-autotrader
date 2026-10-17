@@ -48,12 +48,12 @@ def prob_touch_up(spot: float, barrier: float, sigma: float, tau: float, running
     b = math.log(barrier / spot)
     nu = -0.5 * sigma * sigma
     st = sigma * math.sqrt(tau)
-    return min(norm_cdf((-b + nu * tau) / st) + math.exp(2 * nu * b / (sigma * sigma)) * norm_cdf((-b - nu * tau) / st), 1.0)
+    return min(
+        norm_cdf((-b + nu * tau) / st) + math.exp(2 * nu * b / (sigma * sigma)) * norm_cdf((-b - nu * tau) / st), 1.0
+    )
 
 
-def prob_touch_down(
-    spot: float, barrier: float, sigma: float, tau: float, running_min: float | None = None
-) -> float:
+def prob_touch_down(spot: float, barrier: float, sigma: float, tau: float, running_min: float | None = None) -> float:
     """P(min_{t≤T} S_t ≤ L) for L below spot."""
     if barrier >= spot or (running_min is not None and running_min <= barrier):
         return 1.0
@@ -62,7 +62,9 @@ def prob_touch_down(
     b = math.log(barrier / spot)  # < 0
     nu = -0.5 * sigma * sigma
     st = sigma * math.sqrt(tau)
-    return min(norm_cdf((b - nu * tau) / st) + math.exp(2 * nu * b / (sigma * sigma)) * norm_cdf((b + nu * tau) / st), 1.0)
+    return min(
+        norm_cdf((b - nu * tau) / st) + math.exp(2 * nu * b / (sigma * sigma)) * norm_cdf((b + nu * tau) / st), 1.0
+    )
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,0 +1,147 @@
+# pmtrader default configuration. Copy overrides into config/local.yaml (git-ignored).
+# Secrets NEVER go here — use .env (see .env.example).
+# Any key can also be overridden by env: PMT_<SECTION>__<KEY>, e.g. PMT_RISK__MAX_DAILY_LOSS_USD=25
+
+mode: paper            # scanner | paper | live
+log_level: INFO
+
+universe:
+  max_markets: 300             # markets subscribed on the WS feed (whole neg-risk events are kept together)
+  min_liquidity_usd: 1000
+  min_volume_24h_usd: 500
+  max_days_to_close: 120
+  min_minutes_to_close: 5
+  exclude_keywords: []
+  catalog_refresh_seconds: 120
+  catalog_max_pages: 10        # × 100 events, most active first
+
+scanner:
+  interval_ms: 1000
+  top_k: 25
+
+strategies:
+  complete_set_arb:
+    enabled: true
+    auto_trade: true
+    min_edge: 0.003            # $/set net of fees
+    max_usd_per_trade: 100
+    params: {epsilon: 0.003, cooldown_s: 10}
+  negrisk_basket_arb:
+    enabled: true
+    auto_trade: true
+    min_edge: 0.005
+    max_usd_per_trade: 100
+    params: {epsilon: 0.005, cooldown_s: 10}
+  ladder_arb:
+    enabled: true
+    auto_trade: true
+    min_edge: 0.005
+    max_usd_per_trade: 100
+    params: {epsilon: 0.005, cooldown_s: 10}
+  crypto_fair_value:
+    enabled: true
+    auto_trade: true
+    min_edge: 0.03             # vs the LOW end of the model band, after taker fee
+    max_usd_per_trade: 40
+    kelly_fraction: 0.2
+    params:
+      vol_mult_lo: 0.8
+      vol_mult_hi: 1.4
+      min_seconds_to_expiry: 120
+      exit_margin: 0.0
+      cooldown_s: 60
+      require_llm: 0           # 1 = route through the LLM gate
+  market_maker:
+    enabled: false             # enable only after paper validation (markouts!)
+    auto_trade: false
+    min_edge: 0.002
+    max_usd_per_trade: 50
+    params: {gamma: 0.1, k: 150, horizon_s: 3600, sigma_logit_per_sqrt_s: 0.002, inventory_cap_shares: 500,
+             min_hours_to_close: 24, pre_event_buffer_h: 2}
+  longshot_fade:
+    enabled: false             # needs data/calibration.json (pmtrader calibrate)
+    auto_trade: false
+    min_edge: 0.02
+    max_usd_per_trade: 25
+    kelly_fraction: 0.15
+    params: {min_yes_price: 0.02, max_yes_price: 0.15, max_days_to_close: 30, stop_yes_price: 0.35}
+
+risk:
+  max_new_markets_per_day: 10  # distinct Polymarket events opened per day
+  max_daily_loss_usd: 50
+  max_drawdown_pct: 15
+  max_order_usd: 50
+  max_position_usd_per_market: 100
+  max_exposure_per_event_usd: 150
+  max_gross_exposure_usd: 500
+  max_open_orders: 40
+  max_orders_per_minute: 30
+  max_price_deviation: 0.05
+  min_time_to_close_minutes: 10
+  stale_book_seconds: 15         # connection-level freshness (heartbeat every 10s)
+  kelly_fraction: 0.25
+  max_consecutive_rejects: 5
+  flatten_max_slippage: 0.05
+  allowed_strategies: [complete_set_arb, negrisk_basket_arb, ladder_arb, crypto_fair_value]
+  blocked_keywords: []
+
+risk_ceilings:                 # runtime edits (UI/Discord) can never exceed these
+  max_new_markets_per_day: 100
+  max_daily_loss_usd: 1000
+  max_drawdown_pct: 50
+  max_order_usd: 1000
+  max_position_usd_per_market: 2000
+  max_exposure_per_event_usd: 3000
+  max_gross_exposure_usd: 10000
+  max_open_orders: 200
+  max_orders_per_minute: 120
+  kelly_fraction: 0.5
+
+execution:
+  paper:
+    starting_cash_usd: 1000
+    latency_ms: 150
+  live:
+    reconcile_seconds: 15
+
+llm:
+  gate_mode: "off"             # "off" | advisory | required
+  fallback: deterministic      # when off/over budget: deterministic (trade) | skip
+  batch_size: 12
+  min_confidence: 0.6
+  cache_ttl_s: 21600
+  price_bucket: 0.02
+  daily_max_calls: 100
+  daily_max_tokens: 200000
+  daily_max_usd: 1.0
+  escalate_notional_usd: 200
+  min_interval_s: 30
+  providers: []
+  # Example cascade (put in config/local.yaml):
+  # providers:
+  #   - {name: qwen-local, kind: openai_compat, base_url: "http://localhost:11434/v1", model: "qwen3:14b"}
+  #   - {name: claude, kind: anthropic, model: claude-opus-5-5, effort: low, api_key_env: ANTHROPIC_API_KEY,
+  #      input_usd_per_mtok: 4.0, output_usd_per_mtok: 20.0}
+
+api:
+  host: 127.0.0.1
+  port: 8765
+  max_fps: 10
+
+discord:
+  enabled: false
+  guild_id: null
+  channel_id: null
+  owner_user_ids: []
+  notify_fills: true
+
+reports:
+  timezone: America/New_York
+  daily_time: "23:55"
+  snapshot_seconds: 60
+
+external:
+  binance_base_url: https://data-api.binance.vision
+  deribit_base_url: https://www.deribit.com
+  refresh_seconds: 2
+  vol_refresh_seconds: 300

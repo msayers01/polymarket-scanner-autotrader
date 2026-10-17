@@ -28,7 +28,8 @@ def test_round_price_direction():
 def test_orderbook_levels():
     b = OrderBook("a")
     b.apply_snapshot([(0.40, 10), (0.42, 5)], [(0.45, 7), (0.44, 3)], ts=1, recv_ts=1)
-    assert b.best_bid == 0.42 and b.best_ask == 0.44
+    assert b.best_bid == 0.42
+    assert b.best_ask == 0.44
     assert b.mid == pytest.approx(0.43)
     b.apply_level("SELL", 0.44, 0, ts=2, recv_ts=2)
     assert b.best_ask == 0.45

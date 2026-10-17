@@ -14,7 +14,7 @@ class OrderBook:
     Polymarket ``price_change`` semantics.
     """
 
-    __slots__ = ("_ask_cache", "_asks", "_bid_cache", "_bids", "asset_id", "hash", "market", "recv_ts", "ts")
+    __slots__ = ("_ask_cache", "_asks", "_bid_cache", "_bids", "asset_id", "hash", "link", "market", "recv_ts", "ts")
 
     def __init__(self, asset_id: str, market: str = "") -> None:
         self.asset_id = asset_id
@@ -26,6 +26,9 @@ class OrderBook:
         self.ts = 0.0  # exchange timestamp (s)
         self.recv_ts = 0.0  # local receive time (s)
         self.hash = ""
+        # Liveness of the feed connection this book arrives on (any object with ``connected`` and
+        # ``last_rx``). A quiet book on a live connection is still valid; a book on a dead one is not.
+        self.link: object | None = None
 
     # ------------------------------------------------------------------ mutation
     def apply_snapshot(
@@ -98,7 +101,15 @@ class OrderBook:
         return bool(self._bids) and bool(self._asks)
 
     def age(self, now: float) -> float:
-        return now - self.recv_ts if self.recv_ts else float("inf")
+        """Seconds since this book was last known to be current (inf if never / connection down)."""
+        if not self.recv_ts:
+            return float("inf")
+        t = self.recv_ts
+        if self.link is not None:
+            if not getattr(self.link, "connected", False):
+                return float("inf")
+            t = max(t, float(getattr(self.link, "last_rx", 0.0)))
+        return now - t
 
     def depth_usd(self, side: str, within: float) -> float:
         """USDC notional resting within ``within`` (probability points) of the touch."""

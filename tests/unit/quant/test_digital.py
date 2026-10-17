@@ -1,3 +1,4 @@
+import itertools
 import math
 
 import numpy as np
@@ -37,7 +38,7 @@ def test_touch_already_hit():
 
 def test_buckets_sum_to_one():
     edges = [None, 80, 90, 100, 110, 120, None]
-    total = sum(d.prob_between(100, lo, hi, 0.7, 0.05) for lo, hi in zip(edges[:-1], edges[1:], strict=True))
+    total = sum(d.prob_between(100, lo, hi, 0.7, 0.05) for lo, hi in itertools.pairwise(edges))
     assert total == pytest.approx(1.0)
 
 
@@ -68,3 +69,25 @@ def test_band_brackets_mid():
     b = d.band(lambda s: d.prob_above(100, 120, s, 7 / 365), sigma=0.6)
     assert b.lo <= b.mid <= b.hi
     assert b.stderr > 0
+
+
+def test_seasonal_profile_and_window_multiplier():
+    from pmtrader.quant.volatility import seasonal_profile, window_variance_multiplier
+
+    # 4 weeks of hourly bars: hour 14 UTC is 4x as volatile, weekends half as volatile
+    ts, hi, lo = [], [], []
+    start = 20836 * 86400  # a Monday 00:00 UTC (epoch day 0 was a Thursday)
+    for i in range(24 * 28):
+        t = start + i * 3600
+        hour, weekend = (t // 3600) % 24, ((t // 86400) + 3) % 7 >= 5
+        v = 0.0001 * (4 if hour == 14 else 1) * (0.5 if weekend else 1)
+        ts.append(t)
+        hi.append(math.exp(math.sqrt(v)))
+        lo.append(1.0)
+    hod, wk = seasonal_profile(ts, hi, lo, shrink=0.0)
+    assert hod[14] > 3 * hod[3]
+    assert wk[1] < wk[0]
+    full_week = window_variance_multiplier(hod, wk, start, start + 7 * 86400)
+    assert full_week == pytest.approx(1.0, rel=0.1)
+    sat = start + 5 * 86400 + 20 * 3600
+    assert window_variance_multiplier(hod, wk, sat, sat + 3 * 3600) < 0.7

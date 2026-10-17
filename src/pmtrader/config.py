@@ -71,7 +71,7 @@ class RiskLimits(BaseModel):
     max_orders_per_minute: int = 30
     max_price_deviation: float = 0.05
     min_time_to_close_minutes: float = 10.0
-    stale_book_seconds: float = 5.0
+    stale_book_seconds: float = 15.0
     min_market_liquidity_usd: float = 1000.0
     kelly_fraction: float = 0.25
     max_consecutive_rejects: int = 5

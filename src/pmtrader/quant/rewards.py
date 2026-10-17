@@ -35,7 +35,12 @@ def side_score(levels: Sequence[Level], mid: float, max_spread_c: float, min_siz
 
 
 def quote_q_min(
-    bid: float | None, bid_size: float, ask: float | None, ask_size: float, mid: float, max_spread_c: float,
+    bid: float | None,
+    bid_size: float,
+    ask: float | None,
+    ask_size: float,
+    mid: float,
+    max_spread_c: float,
     min_size: float,
 ) -> float:
     """Q_min of our own two-sided quote on a single token."""

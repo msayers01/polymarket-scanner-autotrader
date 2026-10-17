@@ -81,7 +81,7 @@ def round_price(price: float, tick: float, side: Side | None = None) -> float:
         n = round(steps)
     max_n = round(1.0 / tick) - 1
     n = min(max(n, 1), max_n)
-    decimals = max(0, -int(math.floor(math.log10(tick))))
+    decimals = max(0, -math.floor(math.log10(tick)))
     return round(n * tick, decimals)
 
 
@@ -139,6 +139,10 @@ class EventRef:
     slug: str
     neg_risk: bool = False
     neg_risk_augmented: bool = False
+    # True when every market of the event is either open+tradable or closed and resolved NO,
+    # i.e. the open markets still form an exhaustive set (required for basket arbitrage).
+    basket_complete: bool = False
+    n_open_markets: int = 0
 
 
 @dataclass(frozen=True, slots=True)

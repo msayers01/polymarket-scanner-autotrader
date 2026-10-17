@@ -36,12 +36,11 @@ class Subscription:
         return not self.types or isinstance(ev, self.types)
 
     def _push(self, ev: Event) -> None:
-        if len(self._q) >= self.maxsize:
-            if not self._evict_one():
-                if not ev.critical:
-                    self.dropped += 1
-                    return
-                log.warning("bus.queue_overflow_critical", sub=self.name, size=len(self._q))
+        if len(self._q) >= self.maxsize and not self._evict_one():
+            if not ev.critical:
+                self.dropped += 1
+                return
+            log.warning("bus.queue_overflow_critical", sub=self.name, size=len(self._q))
         self._q.append(ev)
         if self._waiter is not None and not self._waiter.done():
             self._waiter.set_result(None)
