@@ -21,6 +21,7 @@ dependencies = [
     "rich>=13.7",
     "uvicorn[standard]>=0.30",
     "websockets>=13,<16",
+    "tzdata>=2026.5",
 ]
 
 [project.optional-dependencies]
