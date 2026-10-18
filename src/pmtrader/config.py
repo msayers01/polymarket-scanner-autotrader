@@ -197,6 +197,15 @@ class Secrets(BaseModel):
     web_token: SecretStr | None = None
     live_confirm: str | None = None
 
+    @field_validator("*", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, v: Any) -> Any:
+        # ``KEY=`` lines copied from .env.example arrive as "", which must mean "not configured": an empty
+        # web_token would otherwise enable auth with a token nobody can supply and lock the UI out.
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
